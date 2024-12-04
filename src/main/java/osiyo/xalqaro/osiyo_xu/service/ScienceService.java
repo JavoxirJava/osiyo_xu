@@ -31,9 +31,24 @@ public class ScienceService {
         if (scienceRepository.findByName(name).isPresent())
             return new ApiResponse<>("Bunday fan mavzusi mavjud", false);
         scienceRepository.save(Science.builder().name(name).build());
-        return new ApiResponse<>("Fan mavzusi qo'shildi", true);}
+        return new ApiResponse<>("Fan mavzusi qo'shildi", true);
+    }
 
-    public void deleteScience(Long id) {
-        scienceRepository.deleteById(id);
+    public ApiResponse<?> editScience(Long id, String name) {
+        if (scienceRepository.findByName(name).isPresent())
+            return new ApiResponse<>("Bunday fan mavzusi mavjud", false);
+        Science science = scienceRepository.findById(id).orElse(null);
+        assert science != null;
+        science.setName(name);
+        scienceRepository.save(science);
+        return new ApiResponse<>("Fan mavzusi o'zgartirildi", true);
+    }
+
+    public void deleteScienceByName(String name) {
+        scienceRepository.deleteById(scienceRepository.findByName(name).get().getId());
+    }
+
+    public boolean isExist(String name) {
+        return scienceRepository.findByName(name).isPresent();
     }
 }

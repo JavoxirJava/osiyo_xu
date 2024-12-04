@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import osiyo.xalqaro.osiyo_xu.entity.enums.MessageType;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -21,6 +23,10 @@ public class Content {
     @Enumerated(EnumType.STRING)
     private MessageType type;
 
+    @ElementCollection
+    @CollectionTable(name = "content_photos", joinColumns = @JoinColumn(name = "content_id"))
+    @Column(name = "photo")
+    private List<String> photos;
     private String fileId;
     private Integer messageId;
 

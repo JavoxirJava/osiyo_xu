@@ -26,6 +26,10 @@ public class SubjectService {
         return subjectRepository.findByName(name).orElse(null);
     }
 
+    public boolean isExist(String name) {
+        return subjectRepository.findByName(name).isPresent();
+    }
+
     public Subject addSubject(Subject subject) {
         return subjectRepository.save(subject);
     }

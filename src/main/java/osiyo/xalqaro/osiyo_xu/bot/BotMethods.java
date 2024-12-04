@@ -10,11 +10,19 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import osiyo.xalqaro.osiyo_xu.entity.Content;
+import osiyo.xalqaro.osiyo_xu.entity.Science;
+import osiyo.xalqaro.osiyo_xu.entity.Subject;
+import osiyo.xalqaro.osiyo_xu.entity.enums.MessageType;
 import osiyo.xalqaro.osiyo_xu.payload.ApiResponse;
+import osiyo.xalqaro.osiyo_xu.service.ContentService;
 import osiyo.xalqaro.osiyo_xu.service.ScienceService;
+import osiyo.xalqaro.osiyo_xu.service.SubjectService;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,17 +33,21 @@ public class BotMethods {
     private final BotSettings botSettings;
     private final ButtonSettings buttonSettings;
     private final ScienceService scienceService;
+    private final SubjectService subjectService;
+    private final ContentService contentService;
 
-    public BotMethods(@Lazy BotSettings botSettings, ButtonSettings buttonSettings, ScienceService scienceService) {
+    public BotMethods(@Lazy BotSettings botSettings, ButtonSettings buttonSettings, ScienceService scienceService, SubjectService subjectService, ContentService contentService) {
         this.botSettings = botSettings;
         this.buttonSettings = buttonSettings;
         this.scienceService = scienceService;
+        this.subjectService = subjectService;
+        this.contentService = contentService;
     }
 
-    private final Map<Long, String> chooseCancel = new HashMap<>();
+    private final Map<Long, Long> scienceId = new HashMap<>();
     private final Map<Long, String> choose = new HashMap<>();
-    private final Map<Long, String> caption = new HashMap<>();
-    private final Map<Long, List<String>> searchImages = new HashMap<>();
+    private final Map<Long, String> subjectName = new HashMap<>();
+    private final Map<Long, List<Content>> content = new HashMap<>();
 
 
     public void message(Message message) {
@@ -51,36 +63,89 @@ public class BotMethods {
             SendMessage sm = new SendMessage(chatId.toString(), message.getText());
             String text = message.getText();
             switch (text) {
-                case "/start" -> {
+                case Template.START -> {
                     sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_START));
                     sendMSG(sm, Template.CHOOSE_DEPARTMENT);
                 }
                 // science department
                 case Template.SCIENCE_DEPARTMENT -> sendMessageBtn(sm, Template.ADMIN_SCIENCE);
                 case Template.ADD_SCIENCE -> {
-                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.CANSEL_BUTTON));
+                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
                     sendMSG(sm, "Fan nomini kiriting:");
                     choose.put(userId, "addScience");
                 }
+                case Template.EDIT_SCIENCE -> {
+                    List<String> scienceList = scienceService.getSciences();
+                    scienceList.add(Template.BACK);
+                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceList));
+                    sendMSG(sm, "O'zgartirmoqchi bulgan fanni tanlang");
+                    choose.put(userId, "editScience");
+                }
+                case Template.DELETE_SCIENCE -> {
+                    List<String> scienceList = scienceService.getSciences();
+                    scienceList.add(Template.BACK);
+                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceList));
+                    sendMSG(sm, "O'chirmoqchi bulgan fanni tanlang");
+                    choose.put(userId, "deleteScience");
+                }
+                case Template.GET_SCIENCE -> {
+                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
+                    sendMSG(sm, "Fanlar ro'yhati");
+                    sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+                }
+                case Template.MENU -> sendMessageBtn(sm, Template.ADMIN_START);
                 // subject department
                 case Template.SUBJECT_DEPARTMENT -> sendMessageBtn(sm, Template.ADMIN_SUBJECT);
+                case Template.ADD_SUBJECT -> {
+                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
+                    sendMSG(sm, "Mavzu nomini kiriting:");
+                    choose.put(userId, "addSubject");
+                }
+                case Template.ACCEPT -> {
+                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
+                    sendMSG(sm, "Bu mavzu qaysi faniga tegishli?");
+                    choose.put(userId, "addSubjectScience");
+                }
                 default -> {
-                    // science department
                     switch (choose.get(userId)) {
+                        // science department
                         case "addScience" -> {
-                            if (text.equals(Template.CANCEL)) sendMessageBtn(sm, Template.ADMIN_SCIENCE);
-                            else {
-                                ApiResponse<?> apiResponse = scienceService.addScience(text);
-                                if (!apiResponse.isSuccess()) sendMSG(sm, apiResponse.getMessage());
-                                else {
-                                    sendMSG(sm, apiResponse.getMessage());
-                                    sendMessageBtn(sm, Template.ADMIN_SCIENCE);
-                                }
-                            }
+                            if (!Template.BACK.equals(text)) sendAdminMessage(sm, scienceService.addScience(text));
+                            else sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+                        }
+                        case "editScienceName" -> {
+                            if (!Template.BACK.equals(text))
+                                sendAdminMessage(sm, scienceService.editScience(scienceId.get(userId), text));
+                            else sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+                        }
+                        // subject department
+                        case "addSubject" -> {
+                            if (!Template.BACK.equals(text)) {
+                                if (!subjectService.isExist(text)) {
+                                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_AND_ACCEPT_BUTTON));
+                                    sendMSG(sm, "Kerakli fayillarni kiriting:");
+                                    choose.put(userId, "addSubjectFile");
+                                    subjectName.put(userId, text);
+                                } else sendMSG(sm, "Bunday mavzu nomi mavjud");
+                            } else sendMessageBtn(sm, Template.ADMIN_SUBJECT);
+                        }
+                        case "addSubjectFile" -> {
+                            if (!Template.BACK.equals(text))
+                                addContent(userId, message.getMessageId(), null, MessageType.TEXT, null);
+                            else sendMessageBtn(sm, Template.ADMIN_SUBJECT);
                         }
                     }
                 }
             }
+        } else if (choose.get(userId).equals("addSubjectFile")) {
+            if (message.hasPhoto()) addContent(userId, null, null, MessageType.PHOTO,
+                    message.getPhoto().stream().map(PhotoSize::getFileId).toList());
+            else if (message.hasDocument())
+                addContent(userId, null, message.getDocument().getFileId(), MessageType.DOCUMENT, null);
+            else if (message.hasAudio())
+                addContent(userId, null, message.getAudio().getFileId(), MessageType.AUDIO, null);
+            else if (message.hasVideo())
+                addContent(userId, null, message.getVideo().getFileId(), MessageType.VIDEO, null);
         }
     }
 
@@ -89,13 +154,13 @@ public class BotMethods {
             SendMessage sm = new SendMessage(chatId.toString(), message.getText());
             String text = message.getText();
             switch (text) {
-                case "/start" -> {
+                case Template.START -> {
                     sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.OFFER));
                     sendMSG(sm, "Assalomu alaykum botga hush kelibsiz bu bot maqsadi...?");
                     sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
                     sendMSG(sm, "Sizga qiziq fanni tanlang.");
                 }
-                case "Taklif qoldirish" -> {
+                case Template.LAVE_AN_OFFER -> {
                     sendMSG(sm, "Taklifingiznyozing");
                     choose.put(userId, "offer");
                 }
@@ -116,6 +181,44 @@ public class BotMethods {
         String data = callbackQuery.getData();
         SendMessage sm = new SendMessage(userId.toString(), data);
         SendPhoto sp = new SendPhoto();
+        if (Template.CREATOR_ID.equals(userId.toString()))
+            adminCallback(userId, data, sm);
+        else userCallback(userId);
+    }
+
+    public void adminCallback(Long userId, String data, SendMessage sm) {
+        if (data.equals(Template.BACK)) {
+            if (choose.get(userId).equals("editScience") || choose.get(userId).equals("deleteScience"))
+                sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+        } else if (choose.get(userId).equals("editScience")) {
+            Science science = scienceService.getScience(data);
+            if (science != null) {
+                scienceId.put(userId, science.getId());
+                sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
+                sendMSG(sm, "yangi nom Kiriting:");
+                choose.put(userId, "editScienceName");
+            }
+        } else if (choose.get(userId).equals("deleteScience")) {
+            scienceService.deleteScienceByName(data);
+            sendMSG(sm, "Fan mavzusi o'chirildi.");
+            sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+        } else if (choose.get(userId).equals("addSubjectScience")) {
+            Subject saveSubject = subjectService.addSubject(Subject.builder()
+                    .name(subjectName.get(userId))
+                    .science(scienceService.getScience(data))
+                    .build());
+            content.get(userId).forEach(content -> contentService.addContent(Content.builder()
+                    .type(content.getType())
+                    .photos(content.getPhotos())
+                    .fileId(content.getFileId())
+                    .messageId(content.getMessageId())
+                    .subject(saveSubject)
+                    .build()));
+        }
+    }
+
+    public void userCallback(Long userId) {
+
     }
 
     //  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=  Messages  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -132,7 +235,15 @@ public class BotMethods {
     public void sendMessageBtn(SendMessage sm, List<String> buttons) {
         sm.setReplyMarkup(buttonSettings.getKeyboardButton(buttons));
         sendMSG(sm, Template.CHOOSE_DEPARTMENT);
-//        choose.remove(Long.parseLong(sm.getChatId())); TODO uylab kurish kerak
+//        choose.remove(Long.parseLong(sm.getChatId())); // TODO uylab kurish kerak
+    }
+
+    public void sendAdminMessage(SendMessage sm, ApiResponse<?> apiResponse) {
+        if (!apiResponse.isSuccess()) sendMSG(sm, apiResponse.getMessage());
+        else {
+            sendMSG(sm, apiResponse.getMessage());
+            sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+        }
     }
 
     public void editCallbackQuery(CallbackQuery callbackQuery, InlineKeyboardMarkup newInlineKeyboard) {
@@ -182,5 +293,17 @@ public class BotMethods {
         } catch (TelegramApiException e) {
             System.err.println("send video error");
         }
+    }
+
+    public void addContent(Long userId, Integer messageId, String fileId, MessageType type, List<String> photos) {
+        List<Content> contents = new ArrayList<>();
+        if (content.get(userId).isEmpty()) contents = content.get(userId);
+        contents.add(Content.builder()
+                .type(type)
+                .fileId(fileId)
+                .photos(photos)
+                .messageId(messageId)
+                .build());
+        content.put(userId, contents);
     }
 }
