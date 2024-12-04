@@ -29,4 +29,8 @@ public class ContentService {
     public void deleteContent(Long id) {
         contentRepository.deleteById(id);
     }
+
+    public void deleteContentBySubject(Long subjectId) {
+        contentRepository.deleteBySubjectId(subjectId);
+    }
 }
