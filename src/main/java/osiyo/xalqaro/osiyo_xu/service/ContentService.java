@@ -14,8 +14,8 @@ public class ContentService {
         this.contentRepository = contentRepository;
     }
 
-    public List<Content> getContents() {
-        return contentRepository.findAll();
+    public List<Content> getContentBySubject(String subjectName) {
+        return contentRepository.findBySubjectName(subjectName);
     }
 
     public Content getContent(Long id) {

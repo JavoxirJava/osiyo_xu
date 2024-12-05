@@ -33,6 +33,10 @@ public class SubjectService {
         return subjectRepository.findByScience(scienceId);
     }
 
+    public List<String> getSubjectByScience(String name) {
+        return subjectRepository.findByScience(name);
+    }
+
     public boolean isExist(String name) {
         return subjectRepository.findByName(name).isPresent();
     }
@@ -60,5 +64,9 @@ public class SubjectService {
 
     public void deleteSubject(Long id) {
         subjectRepository.deleteById(id);
+    }
+
+    public void deleteSubject(String name) {
+        subjectRepository.deleteSubjectAndContents(name);
     }
 }

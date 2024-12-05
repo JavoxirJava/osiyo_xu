@@ -22,7 +22,8 @@ public class Content {
     private MessageType type;
 
     private String fileId;
-    private Integer messageId;
+    private String caption;
+    private String message;
 
     @ManyToOne(optional = false)
     private Subject subject;

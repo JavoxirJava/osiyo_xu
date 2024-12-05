@@ -3,14 +3,13 @@ package osiyo.xalqaro.osiyo_xu.bot;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
-import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.send.*;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.File;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import osiyo.xalqaro.osiyo_xu.entity.Content;
@@ -47,7 +46,6 @@ public class BotMethods {
     private final Map<Long, Long> scienceId = new HashMap<>();
     private final Map<Long, String> choose = new HashMap<>();
     private final Map<Long, String> subjectName = new HashMap<>();
-    private final Map<Long, String> photoMediaGroupId = new HashMap<>();
     private final Map<Long, List<Content>> content = new HashMap<>();
 
 
@@ -99,13 +97,14 @@ public class BotMethods {
                     choose.put(userId, "addSubject");
                 }
                 case Template.ACCEPT -> {
-                    if (choose.get(userId).equals("editSubjectContent")) { // TODO contentni o'zgartirish tuliq ishlamayapdi!
+                    if (choose.get(userId).equals("editSubjectContent")) {
                         Subject subject = subjectService.getSubject(subjectName.get(userId));
                         contentService.deleteContentBySubject(subject.getId());
                         content.get(userId).forEach(content -> contentService.addContent(Content.builder()
                                 .type(content.getType())
                                 .fileId(content.getFileId())
-                                .messageId(content.getMessageId())
+                                .message(content.getMessage())
+                                .caption(content.getCaption())
                                 .subject(subject)
                                 .build()));
 
@@ -138,6 +137,16 @@ public class BotMethods {
                     sendMSG(sm, "Mavzu matnini kiriting:");
                     choose.put(userId, "editSubjectContent");
                 }
+                case Template.DELETE_SUBJECT -> {
+                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
+                    sendMSG(sm, "Fanni tanlang:");
+                    choose.put(userId, "deleteSubject");
+                }
+                case Template.GET_SUBJECT -> {
+                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
+                    sendMSG(sm, "Fanni tanlang:");
+                    choose.put(userId, "getSubject");
+                }
                 default -> {
                     switch (choose.get(userId)) {
                         // science department
@@ -162,9 +171,9 @@ public class BotMethods {
                                 } else sendMSG(sm, "Bunday mavzu nomi mavjud");
                             } else sendMessageBtn(sm, Template.ADMIN_SUBJECT);
                         }
-                        case "addSubjectFile" -> {
+                        case "addSubjectFile", "editSubjectContent" -> {
                             if (!Template.BACK.equals(text))
-                                addContent(userId, message.getMessageId(), null, MessageType.TEXT);
+                                addContent(userId, text, null, null, MessageType.TEXT);
                             else sendMessageBtn(sm, Template.ADMIN_SUBJECT);
                         }
                         case "editSubjectName" -> {
@@ -178,13 +187,13 @@ public class BotMethods {
             }
         } else if (choose.get(userId).equals("addSubjectFile") || choose.get(userId).equals("editSubjectContent")) {
             if (message.hasPhoto())
-                addContent(userId, null, message.getPhoto().get(0).getFileId(), MessageType.PHOTO);
+                addContent(userId, null, message.getCaption(), message.getPhoto().get(0).getFileId(), MessageType.PHOTO);
             else if (message.hasDocument())
-                addContent(userId, null, message.getDocument().getFileId(), MessageType.DOCUMENT);
+                addContent(userId, null, message.getCaption(), message.getDocument().getFileId(), MessageType.DOCUMENT);
             else if (message.hasAudio())
-                addContent(userId, null, message.getAudio().getFileId(), MessageType.AUDIO);
+                addContent(userId, null, message.getCaption(), message.getAudio().getFileId(), MessageType.AUDIO);
             else if (message.hasVideo())
-                addContent(userId, null, message.getVideo().getFileId(), MessageType.VIDEO);
+                addContent(userId, null, message.getCaption(), message.getVideo().getFileId(), MessageType.VIDEO);
         }
     }
 
@@ -198,6 +207,7 @@ public class BotMethods {
                     sendMSG(sm, "Assalomu alaykum botga hush kelibsiz bu bot maqsadi...?");
                     sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
                     sendMSG(sm, "Sizga qiziq fanni tanlang.");
+                    choose.put(userId, "science");
                 }
                 case Template.LAVE_AN_OFFER -> {
                     sendMSG(sm, "Taklifingiznyozing");
@@ -219,20 +229,20 @@ public class BotMethods {
         Long userId = callbackQuery.getMessage().getChatId();
         String data = callbackQuery.getData();
         SendMessage sm = new SendMessage(userId.toString(), data);
-        SendPhoto sp = new SendPhoto();
         if (Template.CREATOR_ID.equals(userId.toString()))
-            adminCallback(userId, data, sm);
-        else userCallback(userId);
+            adminCallback(userId, data, sm, callbackQuery.getMessage().getMessageId(), callbackQuery.getId());
+        else userCallback(userId, data, sm, callbackQuery.getMessage().getMessageId());
     }
 
-    public void adminCallback(Long userId, String data, SendMessage sm) {
+    public void adminCallback(Long userId, String data, SendMessage sm, Integer messageId, String callbackId) {
         if (data.equals(Template.BACK))
             switch (choose.get(userId)) {
                 case "editScience", "deleteScience" -> sendMessageBtn(sm, Template.ADMIN_SCIENCE);
                 case "editSubject" -> sendMessageBtn(sm, Template.ADMIN_SUBJECT);
-                case "editSubjectScience" -> sendMessageBtn(sm, Template.ADMIN_SUBJECT_EDIT);
+                case "editSubjectScience", "deleteSubjectChoose" -> sendMessageBtn(sm, Template.ADMIN_SUBJECT_EDIT);
             }
-        switch (choose.get(userId)) {
+        if (choose.get(userId) == null) sendAnswer(callbackId, "Siz biror amal bajarayotganingiz yuq");
+        else switch (choose.get(userId)) {
             // science department
             case "editScience" -> {
                 Science science = scienceService.getScience(data);
@@ -257,7 +267,8 @@ public class BotMethods {
                 content.get(userId).forEach(content -> contentService.addContent(Content.builder()
                         .type(content.getType())
                         .fileId(content.getFileId())
-                        .messageId(content.getMessageId())
+                        .message(content.getMessage())
+                        .caption(content.getCaption())
                         .subject(saveSubject)
                         .build()));
                 content.remove(userId);
@@ -279,22 +290,56 @@ public class BotMethods {
                 sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_SUBJECT_EDIT));
                 sendMSG(sm, "Fan mavzusi o'zgartirildi.");
             }
+            case "deleteSubject" -> {
+                Long scienceId_ = scienceService.getScience(data).getId();
+                scienceId.put(userId, scienceId_);
+                List<String> subjectByScience = subjectService.getSubjectByScience(scienceId_);
+                subjectByScience.add(Template.BACK);
+                sm.setReplyMarkup(buttonSettings.getInlineMarkup(subjectByScience));
+                sendMSG(sm, "O'chirmoqchi bulgan mavzuni tanlang:");
+                choose.put(userId, "deleteSubjectChoose");
+            }
+            case "deleteSubjectChoose" -> {// TODO o'chiorishni sozlash
+                subjectService.deleteSubject(data);
+                sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_SUBJECT));
+                sendMSG(sm, "Mavzu o'chirildi.");
+            }
+            case "getSubject" -> {
+                editCallbackQuery(userId, messageId, "Mavzular ro'yhati", buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(scienceService.getScience(data).getId())));
+                sendMessageBtn(sm, Template.ADMIN_SUBJECT);
+                choose.remove(userId);
+            }
         }
     }
 
-    public void userCallback(Long userId) {
+    public void userCallback(Long userId, String data, SendMessage sm, Integer messageId) {
+        switch (choose.get(userId)) {
+            case "science" -> {
+                editCallbackQuery(userId, messageId, "Mavzuni tanlang",
+                        buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(data)));
+                choose.put(userId, "subject");
+            }
+            case "subject" -> contentService.getContentBySubject(data).forEach(content -> {
+                switch (content.getType()) {
+                    case TEXT -> sendMSG(sm, content.getMessage());
+                    case PHOTO -> sendPIC(userId, content.getFileId(), content.getCaption());
+                    case VIDEO -> sendVd(userId, content.getFileId(), content.getCaption());
+                    case AUDIO -> sendAO(userId, content.getFileId(), content.getCaption());
+                    case DOCUMENT -> sendDOC(userId, content.getFileId(), content.getCaption());
+                }
+            });
 
+        }
     }
 
     //  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=  Messages  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-    public Message sendMSG(SendMessage sendMessage, String text) {
+    public void sendMSG(SendMessage sendMessage, String text) {
         try {
             sendMessage.setText(text);
-            return botSettings.execute(sendMessage);
+            botSettings.execute(sendMessage);
         } catch (TelegramApiException e) {
             System.out.println("not execute");
         }
-        return null;
     }
 
     public void sendMessageBtn(SendMessage sm, List<String> buttons) {
@@ -311,14 +356,14 @@ public class BotMethods {
         }
     }
 
-    public void editCallbackQuery(CallbackQuery callbackQuery, InlineKeyboardMarkup newInlineKeyboard) {
+    public void editCallbackQuery(Long chatId, Integer messageId, String text, InlineKeyboardMarkup newInlineKeyboard) {
         try {
-            botSettings.execute(new EditMessageReplyMarkup(
-                    callbackQuery.getMessage().getChatId().toString(),
-                    callbackQuery.getMessage().getMessageId(),
-                    null,
-                    newInlineKeyboard
-            ));
+            botSettings.execute(EditMessageText.builder()
+                    .chatId(chatId.toString())
+                    .messageId(messageId)
+                    .text(text)
+                    .replyMarkup(newInlineKeyboard)
+                    .build());
         } catch (TelegramApiException e) {
             System.out.println(e.getMessage());
         }
@@ -336,37 +381,61 @@ public class BotMethods {
         }
     }
 
-    public void deleteMSG(Integer messageId, Long chatId) {
+    public void sendPIC(Long chatId, String fileId, String caption) {
+        System.out.println("chatId: " + chatId + " fileId: " + fileId + " caption: " + caption);
         try {
-            botSettings.execute(new DeleteMessage(String.valueOf(chatId), messageId));
-        } catch (TelegramApiException e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    public void sendPIC(SendPhoto sp) {
-        try {
-            botSettings.execute(sp);
+            SendPhoto sendPhoto = new SendPhoto(chatId.toString(), new InputFile(fileId));
+            sendPhoto.setCaption("test caption");
+            botSettings.execute(sendPhoto);
         } catch (TelegramApiException e) {
             System.err.println("send photo error");
         }
     }
 
-    public void sendVd(SendVideo sv) {
+    public void sendVd(Long chatId, String fileId, String caption) {
         try {
-            botSettings.execute(sv);
+            botSettings.execute(SendVideo.builder()
+                    .chatId(chatId)
+                    .video(new InputFile(fileId))
+                    .caption(caption)
+                    .build());
         } catch (TelegramApiException e) {
             System.err.println("send video error");
         }
     }
 
-    public void addContent(Long userId, Integer messageId, String fileId, MessageType type) {
+    public void sendDOC(Long chatId, String fileId, String caption) {
+        try {
+            botSettings.execute(SendDocument.builder()
+                    .chatId(chatId)
+                    .document(new InputFile(fileId))
+                    .caption(caption)
+                    .build());
+        } catch (TelegramApiException e) {
+            System.err.println("send document error");
+        }
+    }
+
+    public void sendAO(Long chatId, String fileId, String caption) {
+        try {
+            botSettings.execute(SendAudio.builder()
+                    .chatId(chatId)
+                    .audio(new InputFile(fileId))
+                    .caption(caption)
+                    .build());
+        } catch (TelegramApiException e) {
+            System.err.println("send audio error");
+        }
+    }
+
+    public void addContent(Long userId, String message, String caption, String fileId, MessageType type) {
         List<Content> contents = new ArrayList<>();
         if (content.get(userId) != null) contents = content.get(userId);
         contents.add(Content.builder()
                 .type(type)
                 .fileId(fileId)
-                .messageId(messageId)
+                .message(message)
+                .caption(caption)
                 .build());
         content.put(userId, contents);
     }
