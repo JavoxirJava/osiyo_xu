@@ -3,11 +3,9 @@ package osiyo.xalqaro.osiyo_xu.bot;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
-import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.*;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.File;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -319,16 +317,20 @@ public class BotMethods {
                         buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(data)));
                 choose.put(userId, "subject");
             }
-            case "subject" -> contentService.getContentBySubject(data).forEach(content -> {
-                switch (content.getType()) {
-                    case TEXT -> sendMSG(sm, content.getMessage());
-                    case PHOTO -> sendPIC(userId, content.getFileId(), content.getCaption());
-                    case VIDEO -> sendVd(userId, content.getFileId(), content.getCaption());
-                    case AUDIO -> sendAO(userId, content.getFileId(), content.getCaption());
-                    case DOCUMENT -> sendDOC(userId, content.getFileId(), content.getCaption());
-                }
-            });
-
+            case "subject" -> {
+                contentService.getContentBySubject(data).forEach(content -> {
+                    switch (content.getType()) {
+                        case TEXT -> sendMSG(sm, content.getMessage());
+                        case PHOTO -> sendPIC(userId, content.getFileId(), content.getCaption());
+                        case VIDEO -> sendVd(userId, content.getFileId(), content.getCaption());
+                        case AUDIO -> sendAO(userId, content.getFileId(), content.getCaption());
+                        case DOCUMENT -> sendDOC(userId, content.getFileId(), content.getCaption());
+                    }
+                });
+                sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
+                sendMSG(sm, "Sizga qiziq fanni tanlang.");
+                choose.put(userId, "science");
+            }
         }
     }
 
@@ -382,11 +384,12 @@ public class BotMethods {
     }
 
     public void sendPIC(Long chatId, String fileId, String caption) {
-        System.out.println("chatId: " + chatId + " fileId: " + fileId + " caption: " + caption);
         try {
-            SendPhoto sendPhoto = new SendPhoto(chatId.toString(), new InputFile(fileId));
-            sendPhoto.setCaption("test caption");
-            botSettings.execute(sendPhoto);
+            botSettings.execute(SendPhoto.builder()
+                    .chatId(chatId)
+                    .photo(new InputFile(fileId))
+                    .caption(caption)
+                    .build());
         } catch (TelegramApiException e) {
             System.err.println("send photo error");
         }

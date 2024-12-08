@@ -36,7 +36,7 @@ public interface Template {
     List<String> BACK_BUTTON = List.of(BACK);
     List<String> BACK_AND_ACCEPT_BUTTON = List.of(ACCEPT, BACK);
     List<String> OFFER = List.of(LAVE_AN_OFFER);
-    String BOT_TOKEN = "7383627105:AAFrktVAWW7g6tIiNwxd8pi8xsGLMPR_8ZQ";
-    String BOT_USERNAME = "@full_testbot";
+    String BOT_TOKEN = "7449202231:AAFq5zWJqPS_CmwVUcNl5G3C3sorTziWFJ8";
+    String BOT_USERNAME = "@Medical_ship_bot";
     String CREATOR_ID = "1085241246";
 }
