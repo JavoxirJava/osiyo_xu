@@ -50,7 +50,7 @@ public class BotMethods {
     public void message(Message message) {
         Long chatId = message.getChatId();
         Long userId = message.getFrom().getId();
-        if (Template.CREATOR_ID.equals(userId.toString()))
+        if (Template.CREATOR_ID.equals(userId.toString()) || Template.CREATOR_ID_2.equals(userId.toString()))
             adminMessage(message, chatId, userId);
         else userMessage(message, chatId, userId);
     }
@@ -227,7 +227,7 @@ public class BotMethods {
         Long userId = callbackQuery.getMessage().getChatId();
         String data = callbackQuery.getData();
         SendMessage sm = new SendMessage(userId.toString(), data);
-        if (Template.CREATOR_ID.equals(userId.toString()))
+        if (Template.CREATOR_ID.equals(userId.toString()) || Template.CREATOR_ID_2.equals(userId.toString()))
             adminCallback(userId, data, sm, callbackQuery.getMessage().getMessageId(), callbackQuery.getId());
         else userCallback(userId, data, sm, callbackQuery.getMessage().getMessageId());
     }

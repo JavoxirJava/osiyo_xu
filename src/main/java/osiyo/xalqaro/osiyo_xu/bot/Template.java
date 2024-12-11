@@ -38,5 +38,6 @@ public interface Template {
     List<String> OFFER = List.of(LAVE_AN_OFFER);
     String BOT_TOKEN = "7449202231:AAFq5zWJqPS_CmwVUcNl5G3C3sorTziWFJ8";
     String BOT_USERNAME = "@Medical_ship_bot";
-    String CREATOR_ID = "1085241246";
+    String CREATOR_ID = "6146809388";
+    String CREATOR_ID_2 = "1085241246";
 }
