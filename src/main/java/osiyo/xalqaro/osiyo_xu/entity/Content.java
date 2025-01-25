@@ -18,13 +18,11 @@ public class Content {
     private Long id;
 
     @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private MessageType type;
+    private String direction; // yo'nalish
 
-    private String fileId;
-    private String caption;
-    private String message;
+    @Column(nullable = false)
+    private String semester; // semester
 
-    @ManyToOne(optional = false)
-    private Subject subject;
+    @Column(nullable = false)
+    private String science; // fan
 }

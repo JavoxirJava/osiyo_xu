@@ -10,15 +10,14 @@ import osiyo.xalqaro.osiyo_xu.bot.BotMethods;
 import osiyo.xalqaro.osiyo_xu.bot.BotSettings;
 import osiyo.xalqaro.osiyo_xu.bot.ButtonSettings;
 import osiyo.xalqaro.osiyo_xu.service.ContentService;
-import osiyo.xalqaro.osiyo_xu.service.ScienceService;
-import osiyo.xalqaro.osiyo_xu.service.SubjectService;
 
 @SpringBootApplication
 public class OsiyoXuApplication {
     public static void main(String[] args) throws TelegramApiException {
         ConfigurableApplicationContext run = SpringApplication.run(OsiyoXuApplication.class, args);
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
-        BotMethods botMethods = new BotMethods(run.getBean(BotSettings.class), run.getBean(ButtonSettings.class), run.getBean(ScienceService.class), run.getBean(SubjectService.class), run.getBean(ContentService.class));
+        BotMethods botMethods = new BotMethods(run.getBean(BotSettings.class), run.getBean(ButtonSettings.class),
+                run.getBean(ContentService.class));
         telegramBotsApi.registerBot(new BotSettings(botMethods));
     }
 }

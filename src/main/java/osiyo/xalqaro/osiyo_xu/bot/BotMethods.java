@@ -11,47 +11,36 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import osiyo.xalqaro.osiyo_xu.entity.Content;
-import osiyo.xalqaro.osiyo_xu.entity.Science;
-import osiyo.xalqaro.osiyo_xu.entity.Subject;
 import osiyo.xalqaro.osiyo_xu.entity.enums.MessageType;
 import osiyo.xalqaro.osiyo_xu.payload.ApiResponse;
 import osiyo.xalqaro.osiyo_xu.service.ContentService;
-import osiyo.xalqaro.osiyo_xu.service.ScienceService;
-import osiyo.xalqaro.osiyo_xu.service.SubjectService;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class BotMethods {
 
     private final BotSettings botSettings;
     private final ButtonSettings buttonSettings;
-    private final ScienceService scienceService;
-    private final SubjectService subjectService;
     private final ContentService contentService;
 
-    public BotMethods(@Lazy BotSettings botSettings, ButtonSettings buttonSettings, ScienceService scienceService, SubjectService subjectService, ContentService contentService) {
+    public BotMethods(@Lazy BotSettings botSettings, ButtonSettings buttonSettings, ContentService contentService) {
         this.botSettings = botSettings;
         this.buttonSettings = buttonSettings;
-        this.scienceService = scienceService;
-        this.subjectService = subjectService;
         this.contentService = contentService;
     }
 
-    private final Map<Long, Long> scienceId = new HashMap<>();
+    private final Map<Long, String> direction = new HashMap<>();
     private final Map<Long, String> choose = new HashMap<>();
-    private final Map<Long, String> subjectName = new HashMap<>();
+    private final Map<Long, String> semester = new HashMap<>();
     private final Map<Long, List<Content>> content = new HashMap<>();
+    private final Set<String> semesterSet = new HashSet<>(Semester.ALL_SEMESTERS);
 
 
     public void message(Message message) {
         Long chatId = message.getChatId();
         Long userId = message.getFrom().getId();
-        if (Template.CREATOR_ID.equals(userId.toString()) || Template.CREATOR_ID_2.equals(userId.toString()))
-            adminMessage(message, chatId, userId);
+        if (isAdmin(userId)) adminMessage(message, chatId, userId);
         else userMessage(message, chatId, userId);
     }
 
@@ -62,125 +51,26 @@ public class BotMethods {
             switch (text) {
                 case Template.START -> {
                     sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_START));
-                    sendMSG(sm, Template.CHOOSE_DEPARTMENT);
+                    sendMSG(sm, Template.CHOOSE_DIRECTION);
+                    choose.put(userId, "direction");
                 }
-                // science department
-                case Template.SCIENCE_DEPARTMENT -> sendMessageBtn(sm, Template.ADMIN_SCIENCE);
-                case Template.ADD_SCIENCE -> {
-                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
-                    sendMSG(sm, "Fan nomini kiriting:");
-                    choose.put(userId, "addScience");
-                }
-                case Template.EDIT_SCIENCE -> {
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(getSubjects()));
-                    sendMSG(sm, "O'zgartirmoqchi bulgan fanni tanlang");
-                    choose.put(userId, "editScience");
-                }
-                case Template.DELETE_SCIENCE -> {
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(getSubjects()));
-                    sendMSG(sm, "O'chirmoqchi bulgan fanni tanlang");
-                    choose.put(userId, "deleteScience");
-                }
-                case Template.GET_SCIENCE -> {
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
-                    sendMSG(sm, "Fanlar ro'yhati");
-                    sendMessageBtn(sm, Template.ADMIN_SCIENCE);
-                }
-                case Template.MENU -> sendMessageBtn(sm, Template.ADMIN_START);
-                // subject department
-                case Template.SUBJECT_DEPARTMENT -> sendMessageBtn(sm, Template.ADMIN_SUBJECT);
-                case Template.ADD_SUBJECT -> {
-                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
-                    sendMSG(sm, "Mavzu nomini kiriting:");
-                    choose.put(userId, "addSubject");
-                }
-                case Template.ACCEPT -> {
-                    if (choose.get(userId).equals("editSubjectContent")) {
-                        Subject subject = subjectService.getSubject(subjectName.get(userId));
-                        contentService.deleteContentBySubject(subject.getId());
-                        content.get(userId).forEach(content -> contentService.addContent(Content.builder()
-                                .type(content.getType())
-                                .fileId(content.getFileId())
-                                .message(content.getMessage())
-                                .caption(content.getCaption())
-                                .subject(subject)
-                                .build()));
-
-                        content.remove(userId);
-                        sendMSG(sm, "Mavzu contenti o'zgartirildi");
-                        sendMessageBtn(sm, Template.ADMIN_SUBJECT_EDIT);
-                    } else {
-                        sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
-                        sendMSG(sm, "Bu mavzu qaysi fanga tegishli?");
-                        choose.put(userId, "addSubjectScience");
-                    }
-                }
-                case Template.EDIT_SUBJECT -> {
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(getSubjects()));
-                    sendMSG(sm, "Qaysi fandagi mavzuni o'zgartirmoqchisiz?");
-                    choose.put(userId, "editSubject");
-                }
-                case Template.EDIT_SUBJECT_SCIENCE -> {
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(getSubjects()));
-                    sendMSG(sm, "Mavzuni qaysi fanga tug'irlamoqchisiz?");
-                    choose.put(userId, "editSubjectScience");
-                }
-                case Template.EDIT_NAME -> {
-                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
-                    sendMSG(sm, "Mavzu nomini kiriting:");
-                    choose.put(userId, "editSubjectName");
-                }
-                case Template.EDIT_CONTENT -> {
-                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_AND_ACCEPT_BUTTON));
-                    sendMSG(sm, "Mavzu matnini kiriting:");
-                    choose.put(userId, "editSubjectContent");
-                }
-                case Template.DELETE_SUBJECT -> {
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
-                    sendMSG(sm, "Fanni tanlang:");
-                    choose.put(userId, "deleteSubject");
-                }
-                case Template.GET_SUBJECT -> {
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
-                    sendMSG(sm, "Fanni tanlang:");
-                    choose.put(userId, "getSubject");
+                // direction
+                case Template.DENTISTRY -> {
+                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Semester.TEN_SEMESTERS));
+                    sendMSG(sm, Template.CHOOSE_SEMESTER);
+                    choose.put(userId, "semester");
+                    direction.put(userId, text);
                 }
                 default -> {
-                    switch (choose.get(userId)) {
-                        // science department
-                        case "addScience" -> {
-                            if (!Template.BACK.equals(text))
-                                sendAdminMessage(sm, scienceService.addScience(text), Template.ADMIN_SCIENCE);
-                            else sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+                    if (choose.containsKey(userId))
+                        if (choose.get(userId).equals("semester") && semesterSet.contains(text)) {
+                            semester.put(userId, text);
+                            sm.setReplyMarkup(buttonSettings.getKeyboardButton(getSciences(userId)));
+                            sendMSG(sm, Template.CHOOSE_SCIENCE);
+                            choose.put(userId, "science");
+                        } else if (choose.get(userId).equals("science") && Science.ALL_SCIENCES.contains(text)) {
+                            System.out.println("science");
                         }
-                        case "editScienceName" -> {
-                            if (!Template.BACK.equals(text))
-                                sendAdminMessage(sm, scienceService.editScience(scienceId.get(userId), text), Template.ADMIN_SCIENCE);
-                            else sendMessageBtn(sm, Template.ADMIN_SCIENCE);
-                        }
-                        // subject department
-                        case "addSubject" -> {
-                            if (!Template.BACK.equals(text)) {
-                                if (!subjectService.isExist(text)) {
-                                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_AND_ACCEPT_BUTTON));
-                                    sendMSG(sm, "Kerakli fayillarni kiriting:");
-                                    choose.put(userId, "addSubjectFile");
-                                    subjectName.put(userId, text);
-                                } else sendMSG(sm, "Bunday mavzu nomi mavjud");
-                            } else sendMessageBtn(sm, Template.ADMIN_SUBJECT);
-                        }
-                        case "addSubjectFile", "editSubjectContent" -> {
-                            if (!Template.BACK.equals(text))
-                                addContent(userId, text, null, null, MessageType.TEXT);
-                            else sendMessageBtn(sm, Template.ADMIN_SUBJECT);
-                        }
-                        case "editSubjectName" -> {
-                            if (!Template.BACK.equals(text))
-                                sendAdminMessage(sm, subjectService.editSubjectName(subjectName.get(userId), text), Template.ADMIN_SUBJECT_EDIT);
-                            else sendMessageBtn(sm, Template.ADMIN_SUBJECT_EDIT);
-                            subjectName.put(userId, text);
-                        }
-                    }
                 }
             }
         } else if (choose.get(userId).equals("addSubjectFile") || choose.get(userId).equals("editSubjectContent")) {
@@ -200,13 +90,13 @@ public class BotMethods {
             SendMessage sm = new SendMessage(chatId.toString(), message.getText());
             String text = message.getText();
             switch (text) {
-                case Template.START -> {
-                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.OFFER));
-                    sendMSG(sm, "Assalomu alaykum botga hush kelibsiz bu bot maqsadi...?");
-                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
-                    sendMSG(sm, "Sizga qiziq fanni tanlang.");
-                    choose.put(userId, "science");
-                }
+//                case Template.START -> {
+//                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.OFFER));
+//                    sendMSG(sm, "Assalomu alaykum botga hush kelibsiz bu bot maqsadi...?");
+//                    sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
+//                    sendMSG(sm, "Sizga qiziq fanni tanlang.");
+//                    choose.put(userId, "science");
+//                }
                 case Template.LAVE_AN_OFFER -> {
                     sendMSG(sm, "Taklifingiznyozing");
                     choose.put(userId, "offer");
@@ -214,9 +104,8 @@ public class BotMethods {
                 default -> {
                     if (choose.get(userId).equals("offer")) {
                         sendMSG(sm, "Habaringiz adminga yuborildi.");
-                        sm.setChatId(Template.CREATOR_ID);
-                        sendMSG(sm, "yangi taklif qoldirildi\n\nFirstName: " + message.getFrom().getFirstName()
-                                + "\nMessage: " + message.getText());
+                        sendAdminsMessage(sm, "yangi taklif qoldirildi\n\nFirstName: "
+                                + message.getFrom().getFirstName() + "\nMessage: " + message.getText());
                     }
                 }
             }
@@ -227,7 +116,7 @@ public class BotMethods {
         Long userId = callbackQuery.getMessage().getChatId();
         String data = callbackQuery.getData();
         SendMessage sm = new SendMessage(userId.toString(), data);
-        if (Template.CREATOR_ID.equals(userId.toString()) || Template.CREATOR_ID_2.equals(userId.toString()))
+        if (isAdmin(userId))
             adminCallback(userId, data, sm, callbackQuery.getMessage().getMessageId(), callbackQuery.getId());
         else userCallback(userId, data, sm, callbackQuery.getMessage().getMessageId());
     }
@@ -240,98 +129,98 @@ public class BotMethods {
                 case "editSubjectScience", "deleteSubjectChoose" -> sendMessageBtn(sm, Template.ADMIN_SUBJECT_EDIT);
             }
         if (choose.get(userId) == null) sendAnswer(callbackId, "Siz biror amal bajarayotganingiz yuq");
-        else switch (choose.get(userId)) {
-            // science department
-            case "editScience" -> {
-                Science science = scienceService.getScience(data);
-                if (science != null) {
-                    scienceId.put(userId, science.getId());
-                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
-                    sendMSG(sm, "yangi nom Kiriting:");
-                    choose.put(userId, "editScienceName");
-                }
-            }
-            case "deleteScience" -> {
-                scienceService.deleteScienceByName(data);
-                sendMSG(sm, "Fan mavzusi o'chirildi.");
-                sendMessageBtn(sm, Template.ADMIN_SCIENCE);
-            }
-            // subject department
-            case "addSubjectScience" -> {
-                Subject saveSubject = subjectService.addSubject(Subject.builder()
-                        .name(subjectName.get(userId))
-                        .science(scienceService.getScience(data))
-                        .build());
-                content.get(userId).forEach(content -> contentService.addContent(Content.builder()
-                        .type(content.getType())
-                        .fileId(content.getFileId())
-                        .message(content.getMessage())
-                        .caption(content.getCaption())
-                        .subject(saveSubject)
-                        .build()));
-                content.remove(userId);
-                sendMSG(sm, "Mavzu qo'shildi.");
-                sendMessageBtn(sm, Template.ADMIN_SUBJECT);
-            }
-            case "editSubject" -> {
-                scienceId.put(userId, scienceService.getScience(data).getId());
-                sm.setReplyMarkup(buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(scienceId.get(userId))));
-                sendMSG(sm, "Qaysi mavzuni o'zgartirmoqchisiz?");
-                choose.put(userId, "editSubjectChoose");
-            }
-            case "editSubjectChoose" -> {
-                subjectName.put(userId, data);
-                sendMessageBtn(sm, Template.ADMIN_SUBJECT_EDIT);
-            }
-            case "editSubjectScience" -> {
-                subjectService.editSubjectScience(subjectName.get(userId), scienceId.get(userId));
-                sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_SUBJECT_EDIT));
-                sendMSG(sm, "Fan mavzusi o'zgartirildi.");
-            }
-            case "deleteSubject" -> {
-                Long scienceId_ = scienceService.getScience(data).getId();
-                scienceId.put(userId, scienceId_);
-                List<String> subjectByScience = subjectService.getSubjectByScience(scienceId_);
-                subjectByScience.add(Template.BACK);
-                sm.setReplyMarkup(buttonSettings.getInlineMarkup(subjectByScience));
-                sendMSG(sm, "O'chirmoqchi bulgan mavzuni tanlang:");
-                choose.put(userId, "deleteSubjectChoose");
-            }
-            case "deleteSubjectChoose" -> {// TODO o'chiorishni sozlash
-                subjectService.deleteSubject(data);
-                sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_SUBJECT));
-                sendMSG(sm, "Mavzu o'chirildi.");
-            }
-            case "getSubject" -> {
-                editCallbackQuery(userId, messageId, "Mavzular ro'yhati", buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(scienceService.getScience(data).getId())));
-                sendMessageBtn(sm, Template.ADMIN_SUBJECT);
-                choose.remove(userId);
-            }
-        }
+//        else switch (choose.get(userId)) {
+//            // science department
+//            case "editScience" -> {
+//                Science science = scienceService.getScience(data);
+//                if (science != null) {
+//                    scienceId.put(userId, science.getId());
+//                    sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.BACK_BUTTON));
+//                    sendMSG(sm, "yangi nom Kiriting:");
+//                    choose.put(userId, "editScienceName");
+//                }
+//            }
+//            case "deleteScience" -> {
+//                scienceService.deleteScienceByName(data);
+//                sendMSG(sm, "Fan mavzusi o'chirildi.");
+//                sendMessageBtn(sm, Template.ADMIN_SCIENCE);
+//            }
+//            // subject department
+//            case "addSubjectScience" -> {
+//                Subject saveSubject = subjectService.addSubject(Subject.builder()
+//                        .name(subjectName.get(userId))
+//                        .science(scienceService.getScience(data))
+//                        .build());
+//                content.get(userId).forEach(content -> contentService.addContent(Content.builder()
+//                        .type(content.getType())
+//                        .fileId(content.getFileId())
+//                        .message(content.getMessage())
+//                        .caption(content.getCaption())
+//                        .subject(saveSubject)
+//                        .build()));
+//                content.remove(userId);
+//                sendMSG(sm, "Mavzu qo'shildi.");
+//                sendMessageBtn(sm, Template.ADMIN_SUBJECT);
+//            }
+//            case "editSubject" -> {
+//                scienceId.put(userId, scienceService.getScience(data).getId());
+//                sm.setReplyMarkup(buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(scienceId.get(userId))));
+//                sendMSG(sm, "Qaysi mavzuni o'zgartirmoqchisiz?");
+//                choose.put(userId, "editSubjectChoose");
+//            }
+//            case "editSubjectChoose" -> {
+//                subjectName.put(userId, data);
+//                sendMessageBtn(sm, Template.ADMIN_SUBJECT_EDIT);
+//            }
+//            case "editSubjectScience" -> {
+//                subjectService.editSubjectScience(subjectName.get(userId), scienceId.get(userId));
+//                sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_SUBJECT_EDIT));
+//                sendMSG(sm, "Fan mavzusi o'zgartirildi.");
+//            }
+//            case "deleteSubject" -> {
+//                Long scienceId_ = scienceService.getScience(data).getId();
+//                scienceId.put(userId, scienceId_);
+//                List<String> subjectByScience = subjectService.getSubjectByScience(scienceId_);
+//                subjectByScience.add(Template.BACK);
+//                sm.setReplyMarkup(buttonSettings.getInlineMarkup(subjectByScience));
+//                sendMSG(sm, "O'chirmoqchi bulgan mavzuni tanlang:");
+//                choose.put(userId, "deleteSubjectChoose");
+//            }
+//            case "deleteSubjectChoose" -> {// TODO o'chiorishni sozlash
+//                subjectService.deleteSubject(data);
+//                sm.setReplyMarkup(buttonSettings.getKeyboardButton(Template.ADMIN_SUBJECT));
+//                sendMSG(sm, "Mavzu o'chirildi.");
+//            }
+//            case "getSubject" -> {
+//                editCallbackQuery(userId, messageId, "Mavzular ro'yhati", buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(scienceService.getScience(data).getId())));
+//                sendMessageBtn(sm, Template.ADMIN_SUBJECT);
+//                choose.remove(userId);
+//            }
+//        }
     }
 
     public void userCallback(Long userId, String data, SendMessage sm, Integer messageId) {
-        switch (choose.get(userId)) {
-            case "science" -> {
-                editCallbackQuery(userId, messageId, "Mavzuni tanlang",
-                        buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(data)));
-                choose.put(userId, "subject");
-            }
-            case "subject" -> {
-                contentService.getContentBySubject(data).forEach(content -> {
-                    switch (content.getType()) {
-                        case TEXT -> sendMSG(sm, content.getMessage());
-                        case PHOTO -> sendPIC(userId, content.getFileId(), content.getCaption());
-                        case VIDEO -> sendVd(userId, content.getFileId(), content.getCaption());
-                        case AUDIO -> sendAO(userId, content.getFileId(), content.getCaption());
-                        case DOCUMENT -> sendDOC(userId, content.getFileId(), content.getCaption());
-                    }
-                });
-                sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
-                sendMSG(sm, "Sizga qiziq fanni tanlang.");
-                choose.put(userId, "science");
-            }
-        }
+//        switch (choose.get(userId)) {
+//            case "science" -> {
+//                editCallbackQuery(userId, messageId, "Mavzuni tanlang",
+//                        buttonSettings.getInlineMarkup(subjectService.getSubjectByScience(data)));
+//                choose.put(userId, "subject");
+//            }
+//            case "subject" -> {
+//                contentService.getContentBySubject(data).forEach(content -> {
+//                    switch (content.getType()) {
+//                        case TEXT -> sendMSG(sm, content.getMessage());
+//                        case PHOTO -> sendPIC(userId, content.getFileId(), content.getCaption());
+//                        case VIDEO -> sendVd(userId, content.getFileId(), content.getCaption());
+//                        case AUDIO -> sendAO(userId, content.getFileId(), content.getCaption());
+//                        case DOCUMENT -> sendDOC(userId, content.getFileId(), content.getCaption());
+//                    }
+//                });
+//                sm.setReplyMarkup(buttonSettings.getInlineMarkup(scienceService.getSciences()));
+//                sendMSG(sm, "Sizga qiziq fanni tanlang.");
+//                choose.put(userId, "science");
+//            }
+//        }
     }
 
     //  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=  Messages  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -431,21 +320,55 @@ public class BotMethods {
         }
     }
 
-    public void addContent(Long userId, String message, String caption, String fileId, MessageType type) {
-        List<Content> contents = new ArrayList<>();
-        if (content.get(userId) != null) contents = content.get(userId);
-        contents.add(Content.builder()
-                .type(type)
-                .fileId(fileId)
-                .message(message)
-                .caption(caption)
-                .build());
-        content.put(userId, contents);
+    public void sendAdminsMessage(SendMessage sm, String text) {
+        Template.ADMINS.forEach(admin -> {
+            sm.setChatId(admin);
+            sendMSG(sm, text);
+        });
     }
 
-    public List<String> getSubjects() {
-        List<String> sciencesList = scienceService.getSciences();
-        sciencesList.add(Template.BACK);
-        return sciencesList;
+    public void addContent(Long userId, String message, String caption, String fileId, MessageType type) {
+        List<Content> contents = new ArrayList<>();
+//        if (content.get(userId) != null) contents = content.get(userId);
+//        contents.add(Content.builder()
+//                .type(type)
+//                .fileId(fileId)
+//                .message(message)
+//                .caption(caption)
+//                .build());
+//        content.put(userId, contents);
+    }
+
+    public boolean isAdmin(Long userId) {
+        for (Long admin : Template.ADMINS) if (admin.equals(userId)) return true;
+        return false;
+    }
+
+    public List<String> getSciences(Long userId) {
+        switch (direction.get(userId)) {
+            case Template.DENTISTRY -> {
+                switch (semester.get(userId)) {
+                    case Semester.ONE_SEMESTER -> {
+                        return Science.ONE_SEMESTER_DENTISTRY;
+                    }
+                    case Semester.TWO_SEMESTER -> {
+                        return Science.TWO_SEMESTER_DENTISTRY;
+                    }
+                    case Semester.THREE_SEMESTER -> {
+                        return Science.THREE_SEMESTER_DENTISTRY;
+                    }
+                    case Semester.FOUR_SEMESTER -> {
+                        return Science.FOUR_SEMESTER_DENTISTRY;
+                    }
+                    case Semester.FIVE_SEMESTER -> {
+                        return Science.FIVE_SEMESTER_DENTISTRY;
+                    }
+                }
+            }
+            case Template.TREATMENT_WORK -> {
+                /// TODO TREATMENT_WORK code...
+            }
+        }
+        return null;
     }
 }

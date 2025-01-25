@@ -44,6 +44,17 @@ public class ButtonSettings {
 
 
     //keyboardButton
+    public ReplyKeyboardMarkup getKeyboardButtonCol(List<String> data) {
+        ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        data.forEach(text -> keyboardRows.add(new KeyboardRow(List.of(getKeyboardButton(text)))));
+        markup.setSelective(true);
+        markup.setResizeKeyboard(true);
+        markup.setOneTimeKeyboard(true);
+        markup.setKeyboard(keyboardRows);
+        return markup;
+    }
+
     public ReplyKeyboardMarkup getKeyboardButton(List<String> data) {
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboardRows = new ArrayList<>();
