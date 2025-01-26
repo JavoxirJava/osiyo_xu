@@ -25,4 +25,7 @@ public class Content {
 
     @Column(nullable = false)
     private String science; // fan
+
+    @Column(nullable = false)
+    private String subject; // mavzu
 }

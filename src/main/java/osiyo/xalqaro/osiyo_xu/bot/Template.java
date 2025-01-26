@@ -1,6 +1,7 @@
 package osiyo.xalqaro.osiyo_xu.bot;
 
 import java.util.List;
+import java.util.Set;
 
 public interface Template {
     // Admins Chat Id
@@ -11,13 +12,18 @@ public interface Template {
 
     // Messages
     String START = "/start";
-    String CHOOSE_SEMESTER = "semestr ni tanlang.";
+    String CHOOSE_SEMESTER = "Semestr ni tanlang.";
     String CHOOSE_DEPARTMENT = "Kearkli bo'limni tanlang";
     String CHOOSE_DIRECTION = "Yunalishni tanlanng.";
     String CHOOSE_SCIENCE = "Fanini tanlang.";
+    String CHOOSE_SUBJECT = "Mavzuni tanlang.";
+    String SUBJECT_NAME = "Mavzu nomini yozing.";
+    String SUBJECT_CONTENT = "Mavzu Malumotlarini yozing.";
+    String SUBJECT_SAVED = "Mavzu saqlandi.\n\n" + CHOOSE_DEPARTMENT;
+    String SUBJECT_DELETED = "Mavzu o'chirild.\n\n" + CHOOSE_DEPARTMENT;
     String LAVE_AN_OFFER = "Taklif qoldirish";
     String ACCEPT = "Tasdiqlash";
-    String BACK = "Bekor qilish";
+    String BACK = "\uD83D\uDD19 Ortga qaytish";
     String MENU = "Menu ga qaytish";
 
     // Admin Start
@@ -25,26 +31,14 @@ public interface Template {
     String TREATMENT_WORK = "Davolash ishi";
     String PHARMACEUTICALS = "Farmatsevtika";
 
-    // Admin Science
-    String ADD_SCIENCE = "Fan qo'shish";
-    String EDIT_SCIENCE = "Fanni tahrirlash";
-    String DELETE_SCIENCE = "Fanni o`chirish";
-    String GET_SCIENCE = "Fanlarni ko'rish";
-
     // Admin Subject
     String ADD_SUBJECT = "Mavzu qo'shish";
-    String EDIT_SUBJECT = "Mavzuni tahrirlash";
-    String DELETE_SUBJECT = "Mavzuni o`chirish";
     String GET_SUBJECT = "Mavzularni ko'rish";
-    String EDIT_SUBJECT_SCIENCE = "Fanini o'zgartirish";
-    String EDIT_NAME = "Nomini o'zgartirish";
-    String EDIT_CONTENT = "Malumotlarini o'zgartirish";
+    String DELETE_SUBJECT = "Mavzuni o`chirish";
 
     List<String> ADMIN_START = List.of(DENTISTRY, TREATMENT_WORK, PHARMACEUTICALS);
-    List<String> ADMIN_SCIENCE = List.of(ADD_SCIENCE, EDIT_SCIENCE, DELETE_SCIENCE, GET_SCIENCE, MENU);
-    List<String> ADMIN_SUBJECT = List.of(ADD_SUBJECT, EDIT_SUBJECT, DELETE_SUBJECT, GET_SUBJECT, MENU);
-    List<String> ADMIN_SUBJECT_EDIT = List.of(EDIT_SUBJECT_SCIENCE, EDIT_NAME, EDIT_CONTENT, BACK);
-    List<Long> ADMINS = List.of(CREATOR_ID, CREATOR_ID_2, CREATOR_ID_3, CREATOR_ID_4);
+    List<String> ADMIN_SUBJECT = List.of(ADD_SUBJECT, GET_SUBJECT, DELETE_SUBJECT, MENU, BACK);
+    Set<Long> ADMINS = Set.of(CREATOR_ID, CREATOR_ID_2, CREATOR_ID_3, CREATOR_ID_4);
     List<String> BACK_BUTTON = List.of(BACK);
     List<String> BACK_AND_ACCEPT_BUTTON = List.of(ACCEPT, BACK);
     List<String> OFFER = List.of(LAVE_AN_OFFER);

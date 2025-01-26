@@ -18,7 +18,6 @@ public class BotSettings extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage()) botMethods.message(update.getMessage());
-        else if (update.hasCallbackQuery()) botMethods.callbackData(update.getCallbackQuery());
     }
 
     @Override
